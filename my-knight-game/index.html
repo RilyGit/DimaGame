@@ -8,12 +8,14 @@
     body {
       margin: 0;
       overflow: hidden;
-      background-color: black;
+      background: black url("images/your_background.jpg") center/cover no-repeat;
     }
+
     canvas {
       display: block;
       margin: 0 auto;
-      background: black;
+      background: transparent;
+      image-rendering: pixelated; /* сглаживание отключено */
     }
   </style>
 </head>
@@ -47,6 +49,7 @@
 
     function drawMenu() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.imageSmoothingEnabled = false; // отключаем сглаживание
 
       const boardWidth = 312.5;
       const boardHeight = 312.5;
