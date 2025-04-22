@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Главное меню игры</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background-color: black;
+    }
+    canvas {
+      display: block;
+      margin: 0 auto;
+      background: black;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas" width="800" height="600"></canvas>
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    const images = {};
+    const imageSources = {
+      board: 'images/board.png',
+      play: 'images/play.png',
+      settings: 'images/settings.png',
+      exit: 'images/exit.png'
+    };
+
+    const buttons = [];
+
+    function loadImages(sources, callback) {
+      let loadedImages = 0;
+      const numImages = Object.keys(sources).length;
+      for (let key in sources) {
+        images[key] = new Image();
+        images[key].onload = () => {
+          if (++loadedImages >= numImages) callback();
+        };
+        images[key].src = sources[key];
+      }
+    }
+
+    function drawMenu() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const boardWidth = 500;
+      const boardHeight = 500;
+      const boardX = (canvas.width - boardWidth) / 2;
+      const boardY = (canvas.height - boardHeight) / 2;
+      ctx.drawImage(images.board, boardX, boardY, boardWidth, boardHeight);
+
+      buttons.length = 0;
+      const btnWidth = 200;
+      const btnHeight = 60;
+      const spacing = 90;
+
+      const buttonsData = [
+        { img: images.play, action: () => alert('Игра началась!') },
+        { img: images.settings, action: () => alert('Настройки') },
+        { img: images.exit, action: () => alert('Выход') }
+      ];
+
+      const totalHeight = buttonsData.length * btnHeight + (buttonsData.length - 1) * (spacing - btnHeight);
+      const startY = boardY + (boardHeight - totalHeight) / 2;
+
+      buttonsData.forEach((btn, i) => {
+        const x = canvas.width / 2 - btnWidth / 2;
+        const y = startY + i * spacing;
+        ctx.drawImage(btn.img, x, y, btnWidth, btnHeight);
+        buttons.push({ x, y, width: btnWidth, height: btnHeight, action: btn.action });
+      });
+    }
+
+    canvas.addEventListener('click', function (e) {
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+
+      for (let btn of buttons) {
+        if (
+          mx >= btn.x &&
+          mx <= btn.x + btn.width &&
+          my >= btn.y &&
+          my <= btn.y + btn.height
+        ) {
+          btn.action();
+          break;
+        }
+      }
+    });
+
+    loadImages(imageSources, drawMenu);
+  </script>
+</body>
+</html>
