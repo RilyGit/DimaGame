@@ -15,18 +15,18 @@
       display: block;
       margin: 0 auto;
       background: transparent;
-      image-rendering: pixelated; /* сглаживание отключено */
+      image-rendering: pixelated;
     }
   </style>
 </head>
 <body>
   <canvas id="gameCanvas" width="800" height="600"></canvas>
   <script>
-    let gameState = 'menu';
-  
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
-  
+
+    let currentScreen = 'menu'; // 'menu' | 'settings'
+
     const images = {};
     const imageSources = {
       board: 'images/board.png',
@@ -34,9 +34,10 @@
       settings: 'images/settings.png',
       exit: 'images/exit.png'
     };
-  
+
     const buttons = [];
-  
+    let soundEnabled = true;
+
     function loadImages(sources, callback) {
       let loadedImages = 0;
       const numImages = Object.keys(sources).length;
@@ -48,62 +49,31 @@
         images[key].src = sources[key];
       }
     }
-  
-    function drawGame() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = 'black';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-  
-      ctx.fillStyle = 'white';
-      ctx.font = '30px Arial';
-      ctx.fillText('ИГРА НАЧАЛАСЬ!', 280, 300);
-    }
-  
-    function draw() {
-      if (gameState === 'menu') {
-        drawMenu();
-      } else if (gameState === 'game') {
-        drawGame();
-      }
-    }
-  
+
     function drawMenu() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      ctx.imageSmoothingEnabled = false; // отключаем сглаживание
+      ctx.imageSmoothingEnabled = false;
 
       const boardWidth = 312.5;
       const boardHeight = 312.5;
       const boardX = (canvas.width - boardWidth) / 2;
       const boardY = (canvas.height - boardHeight) / 2;
       ctx.drawImage(images.board, boardX, boardY, boardWidth, boardHeight);
-  
+
       buttons.length = 0;
       const btnWidth = 125;
       const btnHeight = 37.5;
       const spacing = 56.25;
-  
+
       const buttonsData = [
-        {
-          img: images.play,
-          action: () => {
-            gameState = 'game';
-            draw();
-          }
-        },
-        {
-          img: images.settings,
-          action: () => alert('Настройки')
-        },
-        {
-          img: images.exit,
-          action: () => alert('Выход')
-        }
+        { img: images.play, action: () => alert('Игра началась!') },
+        { img: images.settings, action: () => { currentScreen = 'settings'; draw(); } },
+        { img: images.exit, action: () => window.close() }
       ];
-  
+
       const totalHeight = buttonsData.length * btnHeight + (buttonsData.length - 4.5) * (spacing - btnHeight);
       const startY = boardY + (boardHeight - totalHeight) / 2;
-  
+
       buttonsData.forEach((btn, i) => {
         const x = canvas.width / 2 - btnWidth / 2;
         const y = startY + i * spacing;
@@ -111,12 +81,49 @@
         buttons.push({ x, y, width: btnWidth, height: btnHeight, action: btn.action });
       });
     }
-  
+
+    function drawSettings() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.fillStyle = 'white';
+      ctx.font = '20px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('Настройки звука', canvas.width / 2, 120);
+
+      buttons.length = 0;
+
+      const createButton = (text, y, action) => {
+        ctx.fillStyle = '#654321';
+        ctx.fillRect(canvas.width / 2 - 100, y, 200, 40);
+        ctx.fillStyle = 'white';
+        ctx.fillText(text, canvas.width / 2, y + 25);
+        buttons.push({ x: canvas.width / 2 - 100, y, width: 200, height: 40, action });
+      };
+
+      createButton(soundEnabled ? '🔇 Выключить звук' : '🔊 Включить звук', 180, () => {
+        soundEnabled = !soundEnabled;
+        draw();
+      });
+
+      createButton('⬅ Вернуться назад', 240, () => {
+        currentScreen = 'menu';
+        draw();
+      });
+    }
+
+    function draw() {
+      if (currentScreen === 'menu') drawMenu();
+      else if (currentScreen === 'settings') drawSettings();
+    }
+
     canvas.addEventListener('click', function (e) {
       const rect = canvas.getBoundingClientRect();
       const mx = e.clientX - rect.left;
       const my = e.clientY - rect.top;
-  
+
       for (let btn of buttons) {
         if (
           mx >= btn.x &&
@@ -129,9 +136,8 @@
         }
       }
     });
-  
+
     loadImages(imageSources, draw);
   </script>
-  
 </body>
 </html>
