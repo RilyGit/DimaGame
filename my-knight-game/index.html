@@ -48,16 +48,16 @@
     function drawMenu() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      const boardWidth = 500;
-      const boardHeight = 500;
+      const boardWidth = 312.5;
+      const boardHeight = 312.5;
       const boardX = (canvas.width - boardWidth) / 2;
       const boardY = (canvas.height - boardHeight) / 2;
       ctx.drawImage(images.board, boardX, boardY, boardWidth, boardHeight);
 
       buttons.length = 0;
-      const btnWidth = 200;
-      const btnHeight = 60;
-      const spacing = 90;
+      const btnWidth = 125;
+      const btnHeight = 37.5;
+      const spacing = 56.25;
 
       const buttonsData = [
         { img: images.play, action: () => alert('Игра началась!') },
@@ -65,7 +65,7 @@
         { img: images.exit, action: () => alert('Выход') }
       ];
 
-      const totalHeight = buttonsData.length * btnHeight + (buttonsData.length - 5) * (spacing - btnHeight);
+      const totalHeight = buttonsData.length * btnHeight + (buttonsData.length - 4.5) * (spacing - btnHeight);
       const startY = boardY + (boardHeight - totalHeight) / 2;
 
       buttonsData.forEach((btn, i) => {
