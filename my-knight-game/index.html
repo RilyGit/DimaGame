@@ -1,143 +1,140 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="uk">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Главное меню игры</title>
+  <title>Головне меню гри</title>
   <style>
-    body {
-      margin: 0;
-      overflow: hidden;
-      background: black url("images/your_background.jpg") center/cover no-repeat;
-    }
+  body {
+    margin: 0;
+  overflow: hidden;
+     background: black url("images/your_background.jpg") center/cover no-repeat;
+   }
 
-    canvas {
-      display: block;
-      margin: 0 auto;
-      background: transparent;
-      image-rendering: pixelated;
-    }
-  </style>
+ canvas {
+ display: block;
+   margin: 0 auto;
+   background: transparent;
+ image-rendering: pixelated;
+ }
+ </style>
 </head>
 <body>
-  <canvas id="gameCanvas" width="800" height="600"></canvas>
-  <script>
-    const canvas = document.getElementById('gameCanvas');
-    const ctx = canvas.getContext('2d');
+<canvas id="gameCanvas" width="800" height="600"></canvas>
+<script>
+   const canvas = document.getElementById('gameCanvas');
+   const ctx = canvas.getContext('2d');
+   let currentScreen = 'menu'; 
+  const images = {};
+  const imageSources = {
+     board: 'images/board.png',
+   play: 'images/play.png',
+    settings: 'images/settings.png',
+    exit: 'images/exit.png'
+   };
 
-    let currentScreen = 'menu'; // 'menu' | 'settings'
+  const buttons = [];
+  let soundEnabled = true;
 
-    const images = {};
-    const imageSources = {
-      board: 'images/board.png',
-      play: 'images/play.png',
-      settings: 'images/settings.png',
-      exit: 'images/exit.png'
-    };
-
-    const buttons = [];
-    let soundEnabled = true;
-
-    function loadImages(sources, callback) {
-      let loadedImages = 0;
-      const numImages = Object.keys(sources).length;
-      for (let key in sources) {
-        images[key] = new Image();
-        images[key].onload = () => {
-          if (++loadedImages >= numImages) callback();
-        };
-        images[key].src = sources[key];
-      }
+   function loadImages(sources, callback) {
+     let loadedImages = 0;
+    const numImages = Object.keys(sources).length;
+  for (let key in sources) {
+       images[key] = new Image();
+       images[key].onload = () => {
+         if (++loadedImages >= numImages) callback();
+      };
+       images[key].src = sources[key];
     }
+  }
 
-    function drawMenu() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.imageSmoothingEnabled = false;
+  function drawMenu() {
+     ctx.clearRect(0, 0, canvas.width, canvas.height);
+     ctx.imageSmoothingEnabled = false;
 
-      const boardWidth = 312.5;
-      const boardHeight = 312.5;
-      const boardX = (canvas.width - boardWidth) / 2;
-      const boardY = (canvas.height - boardHeight) / 2;
-      ctx.drawImage(images.board, boardX, boardY, boardWidth, boardHeight);
+    const boardWidth = 312.5;
+    const boardHeight = 312.5;
+     const boardX = (canvas.width - boardWidth) / 2;
+     const boardY = (canvas.height - boardHeight) / 2;
+     ctx.drawImage(images.board, boardX, boardY, boardWidth, boardHeight);
 
-      buttons.length = 0;
-      const btnWidth = 125;
-      const btnHeight = 37.5;
-      const spacing = 56.25;
+     buttons.length = 0;
+     const btnWidth = 125;
+     const btnHeight = 37.5;
+    const spacing = 56.25;
 
-      const buttonsData = [
-        { img: images.play, action: () => alert('Игра началась!') },
-        { img: images.settings, action: () => { currentScreen = 'settings'; draw(); } },
-        { img: images.exit, action: () => window.close() }
+    const buttonsData = [
+       { img: images.play, action: () => alert('Гра розпочалася!') },
+       { img: images.settings, action: () => { currentScreen = 'settings'; draw(); } },
+      { img: images.exit, action: () => window.close() }
       ];
 
-      const totalHeight = buttonsData.length * btnHeight + (buttonsData.length - 4.5) * (spacing - btnHeight);
-      const startY = boardY + (boardHeight - totalHeight) / 2;
+    const totalHeight = buttonsData.length * btnHeight + (buttonsData.length - 4.5) * (spacing - btnHeight);
+    const startY = boardY + (boardHeight - totalHeight) / 2;
 
-      buttonsData.forEach((btn, i) => {
-        const x = canvas.width / 2 - btnWidth / 2;
-        const y = startY + i * spacing;
-        ctx.drawImage(btn.img, x, y, btnWidth, btnHeight);
-        buttons.push({ x, y, width: btnWidth, height: btnHeight, action: btn.action });
-      });
-    }
+    buttonsData.forEach((btn, i) => {
+     const x = canvas.width / 2 - btnWidth / 2;
+      const y = startY + i * spacing;
+      ctx.drawImage(btn.img, x, y, btnWidth, btnHeight);
+     buttons.push({ x, y, width: btnWidth, height: btnHeight, action: btn.action });
+   });
+  }
 
-    function drawSettings() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+  function drawSettings() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+  ctx.fillStyle = 'white';
+   ctx.font = '20px sans-serif';
+ ctx.textAlign = 'center';
+   ctx.fillText('Налаштування звуку', canvas.width / 2, 120);
+
+    buttons.length = 0;
+
+     const createButton = (text, y, action) => {
+      ctx.fillStyle = '#654321';
+       ctx.fillRect(canvas.width / 2 - 100, y, 200, 40);
       ctx.fillStyle = 'white';
-      ctx.font = '20px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('Настройки звука', canvas.width / 2, 120);
+       ctx.fillText(text, canvas.width / 2, y + 25);
+       buttons.push({ x: canvas.width / 2 - 100, y, width: 200, height: 40, action });
+     };
 
-      buttons.length = 0;
-
-      const createButton = (text, y, action) => {
-        ctx.fillStyle = '#654321';
-        ctx.fillRect(canvas.width / 2 - 100, y, 200, 40);
-        ctx.fillStyle = 'white';
-        ctx.fillText(text, canvas.width / 2, y + 25);
-        buttons.push({ x: canvas.width / 2 - 100, y, width: 200, height: 40, action });
-      };
-
-      createButton(soundEnabled ? '🔇 Выключить звук' : '🔊 Включить звук', 180, () => {
-        soundEnabled = !soundEnabled;
-        draw();
-      });
-
-      createButton('⬅ Вернуться назад', 240, () => {
-        currentScreen = 'menu';
-        draw();
-      });
-    }
-
-    function draw() {
-      if (currentScreen === 'menu') drawMenu();
-      else if (currentScreen === 'settings') drawSettings();
-    }
-
-    canvas.addEventListener('click', function (e) {
-      const rect = canvas.getBoundingClientRect();
-      const mx = e.clientX - rect.left;
-      const my = e.clientY - rect.top;
-
-      for (let btn of buttons) {
-        if (
-          mx >= btn.x &&
-          mx <= btn.x + btn.width &&
-          my >= btn.y &&
-          my <= btn.y + btn.height
-        ) {
-          btn.action();
-          break;
-        }
-      }
+  createButton(soundEnabled ? '🔇 Вимкнути звук' : '🔊 Увімкнути звук', 180, () => {
+     soundEnabled = !soundEnabled;
+      draw();
     });
 
-    loadImages(imageSources, draw);
-  </script>
+  createButton('⬅ Повернутися назад', 240, () => {
+    currentScreen = 'menu';
+      draw();
+     });
+  }
+
+function draw() {
+   if (currentScreen === 'menu') drawMenu();
+     else if (currentScreen === 'settings') drawSettings();
+  }
+   canvas.addEventListener('click', function (e) {
+         const rect = canvas.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+       const my = e.clientY - rect.top;
+
+     for (let btn of buttons) {
+    if (
+     mx >= btn.x &&
+   mx <= btn.x + btn.width &&
+     my >= btn.y &&
+     my <= btn.y + btn.height
+    ) {
+  btn.action();
+  break;
+  }
+  }
+});
+
+loadImages(imageSources, draw);
+</script>
 </body>
 </html>
