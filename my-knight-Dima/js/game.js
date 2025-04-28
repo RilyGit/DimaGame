@@ -50,6 +50,32 @@ const camera = {
     y: 0,
 };
 
+// Скриншот скелета
+const skeletonImages = {
+  walk: new Image(),
+  attack: new Image(),
+};
+
+skeletonImages.walk.src = './assets/images/Skeleton_Walk.png';
+skeletonImages.attack.src = './assets/images/Skeleton_Attack.png';
+
+// Объект скелета
+const skeleton = {
+  x: player.x + 600, // появляется правее игрока
+  y: canvas.height - 210,
+  width: 100,
+  height: 150,
+  speed: 1.5,
+  state: 'walk', // 'walk' или 'attack'
+  frameX: 0,
+  maxFrameWalk: 4,   // 5 кадров ходьбы
+  maxFrameAttack: 7, // 8 кадров атаки
+  frameTimer: 0,
+  frameInterval: 100, // скорость анимации (мс)
+  direction: 'left',
+};
+
+
 function updatePlayer(deltaTime) {
     if (keys.right) {
         player.x += player.speed;
@@ -105,6 +131,7 @@ function drawPlayer() {
     else if (player.action === 'attack2') sprite = attackImage2;
     else if (player.action === 'jump') sprite = jumpImage;
 
+
     ctx.save();
     if (player.direction === 'left') {
         ctx.scale(-1, 1);
@@ -123,6 +150,91 @@ function drawPlayer() {
 ctx.restore();
 }
 
+function updateSkeleton(deltaTime) {
+
+// Гравитация скелета
+skeleton.y += skeleton.velocityY || 0; 
+skeleton.velocityY = (skeleton.velocityY || 0) + 0.8;
+
+if (skeleton.y + player.height >= canvas.height - 60) {
+    skeleton.y = canvas.height - 60 - player.height;
+    skeleton.velocityY = 0;
+}
+
+if (skeleton.state === 'walk') {
+  if (skeleton.x > player.x + player.width / 2) {
+      skeleton.x -= skeleton.speed;
+      skeleton.direction = 'left';
+  } else if (skeleton.x + skeleton.width < player.x + player.width / 2) {
+      skeleton.x += skeleton.speed;
+      skeleton.direction = 'right';
+  } else {
+      skeleton.state = 'attack';
+      skeleton.frameX = 0;
+  }
+}
+
+
+
+  skeleton.frameTimer += deltaTime;
+  if (skeleton.frameTimer > skeleton.frameInterval) {
+      skeleton.frameX++;
+      skeleton.frameTimer = 0;
+
+      if (skeleton.state === 'walk' && skeleton.frameX > skeleton.maxFrameWalk) {
+          skeleton.frameX = 0;
+      }
+      if (skeleton.state === 'attack' && skeleton.frameX > skeleton.maxFrameAttack) {
+          skeleton.frameX = 0;
+      }
+  }
+}
+
+function attackPlayer() {
+  if (skeleton.state === 'attack') {
+      if (skeleton.frameX === 4) { // в момент удара
+          console.log('Скелет атакует!');
+          // Тут можешь уменьшать HP игрока, если хочешь
+      }
+  }
+}
+
+function drawSkeleton() {
+  let img = skeleton.state === 'walk' ? skeletonImages.walk : skeletonImages.attack;
+  let frameWidth = 150;
+
+  ctx.save();
+  if (skeleton.direction === 'left') {
+      ctx.scale(-1, 1);
+      ctx.drawImage(
+          img,
+          skeleton.frameX * frameWidth,
+          0,
+          frameWidth,
+          150,
+          -(skeleton.x - camera.x) - skeleton.width,
+          skeleton.y - camera.y,
+          skeleton.width,
+          player.height // подогнали под рыцаря
+      );
+  } else {
+      ctx.drawImage(
+          img,
+          skeleton.frameX * frameWidth,
+          0,
+          frameWidth,
+          150,
+          skeleton.x - camera.x,
+          skeleton.y - camera.y,
+          skeleton.width,
+          player.height
+      );
+  }
+  ctx.restore();
+}
+
+
+
 function drawGround() {
    for (let i = -1; i < canvas.width / 64 + 2; i++) {
       ctx.drawImage(dirtImage, i * 64 - camera.x % 64, canvas.height - 60, 64, 64);
@@ -136,14 +248,25 @@ function gameLoop(timeStamp) {
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+    // Фон
     ctx.fillStyle = '#87ceeb';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+    // Земля
     drawGround();
+
+    // Обновление и отрисовка игрока
     updatePlayer(deltaTime);
     drawPlayer();
+
+    // Обновление и отрисовка скелета
+    updateSkeleton(deltaTime);
+    attackPlayer();
+    drawSkeleton();
+
     requestAnimationFrame(gameLoop);
 }
+
 
 window.addEventListener('keydown', (e) => {
     const key = e.key.toLowerCase();
@@ -170,4 +293,6 @@ window.addEventListener('mouseup', (e) => {
         keys.attack = false;
     }
 });
+
+
 gameLoop(0);
