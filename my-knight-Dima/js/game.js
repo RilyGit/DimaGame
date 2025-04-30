@@ -1,40 +1,14 @@
+// === Настройки канваса ===
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 ctx.imageSmoothingEnabled = false;
 
-canvas.width = window.innerWidth;
- canvas.height = window.innerHeight;
+let groundLevel = 0;
 
- const groundLevel = canvas.height - 60;
-
-
-const idleImage = new Image();
-idleImage.src = './assets/images/Idle.png';
-const runImage = new Image();
- runImage.src = './assets/images/Run.png';
-const attackImage1 = new Image();
-  attackImage1.src = './assets/images/Attack.png';
-const attackImage2 = new Image();
-attackImage2.src = './assets/images/Attack2.png';
- const jumpImage = new Image();
-jumpImage.src = './assets/images/Jump.png';
-const dirtImage = new Image();
- dirtImage.src = './assets/images/dirt.png';
-
-const keys = {
-    right: false,
-    left: false,
-    attack: false,
-    jump: false,
-};
-
-let lastAttackTime = 0;
-let attackCooldown = 1000; // кдшка пока что нормик 
-let attackToggle = false;
-
+// === Игрок и враг ===
 const player = {
-    x: canvas.width / 2,
-    y: canvas.height - 250, 
+    x: 0,
+    y: 0,
     width: 200,
     height: 250,
     speed: 5,
@@ -44,279 +18,332 @@ const player = {
     currentFrame: 0,
     frameTimer: 0,
     frameInterval: 100,
-    action: 'idle', 
+    action: 'idle',
     direction: 'right',
+    hp: 100,
+    isAlive: true,
 };
-
-const camera = {
-    x: 0,
-    y: 0,
-};
-
-// Скриншот скелета
-const skeletonImages = {
-  walk: new Image(),
-  attack: new Image(),
-};
-
-skeletonImages.walk.src = './assets/images/Skeleton_Walk.png';
-skeletonImages.attack.src = './assets/images/Skeleton_Attack.png';
 
 const skeleton = {
-    x: player.x + 600,
-    y: canvas.height - 250 - 60,
+    x: 0,
+    y: 0,
     width: 200,
     height: 250,
     speed: 1.5,
+    velocityY: 0,
+    gravity: 0.8,
     state: 'walk',
+    direction: 'left',
     frameX: 0,
     maxFrameWalk: 4,
     maxFrameAttack: 7,
     frameTimer: 0,
     frameInterval: 100,
-    direction: 'left',
-    velocityY: 0,
-    gravity: 0.8,
     attackRange: 80,
     attackCooldown: 1000,
     lastAttackTime: 0,
-  };
-  
+    hp: 50,
+    isAlive: true,
+    takeHit: false,
+};
 
+const skeletonVisualOffset = 42; 
 
-function updatePlayer(deltaTime) {
-  if (keys.right) {
-    player.x += player.speed;
-    player.direction = 'right';
-if (!player.isJumping && !keys.attack) player.action = 'run';
-} else if (keys.left) {
-player.x -= player.speed;
-  player.direction = 'left';
- if (!player.isJumping && !keys.attack) player.action = 'run';
-} else if (!player.isJumping && !keys.attack) {
- player.action = 'idle';
+// === Управление ===
+const keys = { right: false, left: false, attack: false, jump: false };
+let lastAttackTime = 0;
+let attackCooldown = 1000;
+let attackToggle = false;
+
+// === Камера ===
+const camera = { x: 0, y: 0 };
+
+// === Загрузка изображений ===
+const loadImage = src => { const img = new Image(); img.src = src; return img; };
+
+const idleImage     = loadImage('./assets/images/Idle.png');
+const runImage      = loadImage('./assets/images/Run.png');
+const attackImage1  = loadImage('./assets/images/Attack.png');
+const attackImage2  = loadImage('./assets/images/Attack2.png');
+const jumpImage     = loadImage('./assets/images/Jump.png');
+const dirtImage     = loadImage('./assets/images/dirt.png');
+
+const skeletonImages = {
+    walk     : loadImage('./assets/images/Skeleton_Walk.png'),
+    attack   : loadImage('./assets/images/Skeleton_Attack.png'),
+    death    : loadImage('./assets/images/Skeleton_Death.png'),
+    hit      : loadImage('./assets/images/Skeleton_Take_Hit.png'),
+};
+
+// === Resize ===
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    groundLevel = canvas.height - 60;
+
+    player.x = canvas.width / 2;
+    player.y = groundLevel - player.height;
+
+    skeleton.x = player.x + 600;
+    skeleton.y = groundLevel - skeleton.height + skeletonVisualOffset;
 }
+window.addEventListener('resize', resizeCanvas);
 
+// === Обновления игрока ===
+function updatePlayer(deltaTime) {
+    if (!player.isAlive) return;
+
+    // движение
+    if (keys.right) {
+        player.x += player.speed;
+        player.direction = 'right';
+        if (!player.isJumping && !keys.attack) player.action = 'run';
+    } else if (keys.left) {
+        player.x -= player.speed;
+        player.direction = 'left';
+        if (!player.isJumping && !keys.attack) player.action = 'run';
+    } else if (!player.isJumping && !keys.attack) {
+        player.action = 'idle';
+    }
+
+    // прыжок
+    if (keys.jump && !player.isJumping) {
+        player.velocityY = -18;
+        player.isJumping = true;
+        player.action = 'jump';
+    }
+    player.y += player.velocityY;
+    player.velocityY += player.gravity;
+
+    // касание земли
     if (player.y + player.height >= groundLevel) {
         player.y = groundLevel - player.height;
         player.velocityY = 0;
         player.isJumping = false;
         if (player.action === 'jump') player.action = 'idle';
     }
-    
 
-if (keys.jump && !player.isJumping) {
-     player.velocityY = -18;  // сила прыжка
- player.isJumping = true;
-    player.action = 'jump';
+    // атака
+    if (keys.attack && Date.now() - lastAttackTime > attackCooldown) {
+        attackToggle = !attackToggle;
+        player.action = attackToggle ? 'attack2' : 'attack1';
+        lastAttackTime = Date.now();
+        if (playerHitsSkeleton()) skeleton.takeHit = true;
     }
 
-    player.y += player.velocityY;
-    player.velocityY += player.gravity;
-
-    if (player.y + player.height >= canvas.height - 60) {
-        player.y = canvas.height - 60 - player.height;
-        player.velocityY = 0;
-        player.isJumping = false;
-        if (player.action === 'jump') player.action = 'idle';
-    }
-
-    if (keys.attack) {
-        const now = Date.now();
-        if (now - lastAttackTime > attackCooldown) {
-            attackToggle = !attackToggle; 
-            player.action = attackToggle ? 'attack2' : 'attack1';
-            lastAttackTime = now;
-        }
-    }
-
+    // анимация кадров
     player.frameTimer += deltaTime;
     if (player.frameTimer > player.frameInterval) {
-        player.currentFrame++;
+        player.currentFrame = (player.currentFrame + 1) % 4;
         player.frameTimer = 0;
-        if (player.currentFrame > 3) player.currentFrame = 0;
     }
+
+    // камера
     camera.x = player.x - canvas.width / 2 + player.width / 2;
 }
 
-function drawPlayer() {
-    let sprite;
-    if (player.action === 'idle') sprite = idleImage;
-    else if (player.action === 'run') sprite = runImage;
-    else if (player.action === 'attack1') sprite = attackImage1;
-    else if (player.action === 'attack2') sprite = attackImage2;
-    else if (player.action === 'jump') sprite = jumpImage;
+// === Обновления скелета ===
+function updateSkeleton(deltaTime) {
+    if (!skeleton.isAlive) return;
 
+    // гравитация
+    skeleton.y += skeleton.velocityY;
+    skeleton.velocityY += skeleton.gravity;
+    if (skeleton.y + skeleton.height - skeletonVisualOffset >= groundLevel) {
+        skeleton.y = groundLevel - skeleton.height + skeletonVisualOffset;
+        skeleton.velocityY = 0;
+    }
+
+    // обработка попадания
+    if (skeleton.takeHit) {
+        skeleton.hp -= 20;
+        skeleton.takeHit = false;
+        if (skeleton.hp <= 0) {
+            skeleton.isAlive = false;
+            return;
+        }
+    }
+
+    // поведение: атака или ходьба
+    const dist = Math.abs(
+        (skeleton.x + skeleton.width / 2) - (player.x + player.width / 2)
+    );
+    if (dist <= skeleton.attackRange) {
+        skeleton.state = 'attack';
+        if (Date.now() - skeleton.lastAttackTime > skeleton.attackCooldown) {
+            skeleton.lastAttackTime = Date.now();
+            if (player.isAlive) player.hp -= 10;
+            if (player.hp <= 0) player.isAlive = false;
+        }
+    } else {
+        skeleton.state = 'walk';
+        if (skeleton.x > player.x) {
+            skeleton.x -= skeleton.speed;
+            skeleton.direction = 'left';
+        } else {
+            skeleton.x += skeleton.speed;
+            skeleton.direction = 'right';
+        }
+    }
+
+    // анимация скелета
+    skeleton.frameTimer += deltaTime;
+    if (skeleton.frameTimer > skeleton.frameInterval) {
+        skeleton.frameTimer = 0;
+        skeleton.frameX++;
+        if (skeleton.state === 'walk' && skeleton.frameX > skeleton.maxFrameWalk) {
+            skeleton.frameX = 0;
+        }
+        if (skeleton.state === 'attack' && skeleton.frameX > skeleton.maxFrameAttack) {
+            skeleton.frameX = 0;
+        }
+    }
+}
+
+// проверка попадания игрока по скелету
+function playerHitsSkeleton() {
+    return skeleton.isAlive &&
+        Math.abs(
+            (skeleton.x + skeleton.width / 2) - (player.x + player.width / 2)
+        ) < 100;
+}
+
+// === Отрисовка ===
+function drawHPBar(x, y, width, hp, maxHp, color) {
+    ctx.fillStyle = 'gray';
+    ctx.fillRect(x, y, width, 10);
+    ctx.fillStyle = color;
+    ctx.fillRect(x, y, width * (hp / maxHp), 10);
+}
+
+function drawPlayer() {
+    if (!player.isAlive) return;
+
+    let sprite = idleImage;
+    switch (player.action) {
+        case 'run':    sprite = runImage;    break;
+        case 'attack1': sprite = attackImage1; break;
+        case 'attack2': sprite = attackImage2; break;
+        case 'jump':   sprite = jumpImage;   break;
+    }
 
     ctx.save();
     if (player.direction === 'left') {
         ctx.scale(-1, 1);
         ctx.drawImage(
-        sprite,
-  player.currentFrame * 120, 0, 120, 80,
-     -(player.x - camera.x) - player.width, player.y - camera.y, player.width, player.height
-      );
- } else {
-     ctx.drawImage(
-          sprite,
-     player.currentFrame * 120, 0, 120, 80,
- player.x - camera.x, player.y - camera.y, player.width, player.height
-    );
-    }
-ctx.restore();
-}
-
-function updateSkeleton(deltaTime) {
-    // Гравитация
-    skeleton.y += skeleton.velocityY;
-    skeleton.velocityY += skeleton.gravity;
-  
-    if (skeleton.y + skeleton.height >= groundLevel) {
-        skeleton.y = groundLevel - skeleton.height;
-        skeleton.velocityY = 0;
-    }
-    
-  
-    // Расстояние до игрока по X
-    const distToPlayer = Math.abs((skeleton.x + skeleton.width / 2) - (player.x + player.width / 2));
-  
-    if (distToPlayer <= skeleton.attackRange) {
-      // В пределах атаки
-      skeleton.state = 'attack';
+            sprite,
+            player.currentFrame * 120, 0, 120, 80,
+            -(player.x - camera.x) - player.width, player.y,
+            player.width, player.height
+        );
     } else {
-      // Не в пределах атаки — идёт к игроку
-      skeleton.state = 'walk';
-      if (skeleton.x > player.x) {
-        skeleton.x -= skeleton.speed;
-        skeleton.direction = 'left';
-      } else if (skeleton.x < player.x) {
-        skeleton.x += skeleton.speed;
-        skeleton.direction = 'right';
-      }
+        ctx.drawImage(
+            sprite,
+            player.currentFrame * 120, 0, 120, 80,
+            player.x - camera.x, player.y,
+            player.width, player.height
+        );
     }
-  
-    // Анимация
-    skeleton.frameTimer += deltaTime;
-    if (skeleton.frameTimer > skeleton.frameInterval) {
-      skeleton.frameX++;
-      skeleton.frameTimer = 0;
-  
-      if (skeleton.state === 'walk' && skeleton.frameX > skeleton.maxFrameWalk) {
-        skeleton.frameX = 0;
-      }
-      if (skeleton.state === 'attack' && skeleton.frameX > skeleton.maxFrameAttack) {
-        skeleton.frameX = 0;
-      }
-    }
-  }
-  
-
-  function attackPlayer() {
-    if (skeleton.state === 'attack') {
-      const now = Date.now();
-      if (skeleton.frameX === 4 && now - skeleton.lastAttackTime > skeleton.attackCooldown) {
-        console.log('Скелет атакует!');
-        skeleton.lastAttackTime = now;
-        // Здесь можешь уменьшать HP игрока
-      }
-    }
-  }
-  
+    ctx.restore();
+    drawHPBar(
+        player.x - camera.x,
+        player.y - 20,
+        player.width,
+        player.hp,
+        100,
+        'green'
+    );
+}
 
 function drawSkeleton() {
-  let img = skeleton.state === 'walk' ? skeletonImages.walk : skeletonImages.attack;
-  let frameWidth = 150;
+    if (!skeleton.isAlive) return;
 
-  ctx.save();
-  if (skeleton.direction === 'left') {
-      ctx.scale(-1, 1);
-      ctx.drawImage(
-          img,
-          skeleton.frameX * frameWidth,
-          0,
-          frameWidth,
-          150,
-          -(skeleton.x - camera.x) - skeleton.width,
-          skeleton.y - camera.y,
-          skeleton.width,
-          skeleton.height // подогнали под рыцаря
-      );
-  } else {
-      ctx.drawImage(
-          img,
-          skeleton.frameX * frameWidth,
-          0,
-          frameWidth,
-          150,
-          skeleton.x - camera.x,
-          skeleton.y - camera.y,
-          skeleton.width,
-          skeleton.height
-      );
-  }
-  ctx.restore();
+    const img = skeleton.state === 'walk'
+        ? skeletonImages.walk
+        : skeletonImages.attack;
+
+    ctx.save();
+    if (skeleton.direction === 'left') {
+        ctx.scale(-1, 1);
+        ctx.drawImage(
+            img,
+            skeleton.frameX * 150, 0, 150, 150,
+            -(skeleton.x - camera.x) - skeleton.width,
+            skeleton.y + skeletonVisualOffset,
+            skeleton.width, skeleton.height
+        );
+    } else {
+        ctx.drawImage(
+            img,
+            skeleton.frameX * 150, 0, 150, 150,
+            skeleton.x - camera.x,
+            skeleton.y + skeletonVisualOffset,
+            skeleton.width, skeleton.height
+        );
+    }
+    ctx.restore();
+    drawHPBar(
+        skeleton.x - camera.x,
+        skeleton.y + skeletonVisualOffset - 20,
+        skeleton.width,
+        skeleton.hp,
+        50,
+        'red'
+    );
 }
 
-
-
 function drawGround() {
-   for (let i = -1; i < canvas.width / 64 + 2; i++) {
-    ctx.drawImage(dirtImage, i * 64 - camera.x % 64, groundLevel, 64, 64);
+    for (let i = -1; i < canvas.width / 64 + 2; i++) {
+        ctx.drawImage(
+            dirtImage,
+            i * 64 - camera.x % 64,
+            groundLevel,
+            64, 64
+        );
     }
 }
 
+// === Игровой цикл ===
 let lastTime = 0;
-function gameLoop(timeStamp) {
-    const deltaTime = timeStamp - lastTime;
-    lastTime = timeStamp;
+function gameLoop(timestamp) {
+    const deltaTime = timestamp - lastTime;
+    lastTime = timestamp;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // Фон
     ctx.fillStyle = '#87ceeb';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Земля
     drawGround();
-
-    // Обновление и отрисовка игрока
     updatePlayer(deltaTime);
     drawPlayer();
-
-    // Обновление и отрисовка скелета
     updateSkeleton(deltaTime);
-    attackPlayer();
     drawSkeleton();
 
     requestAnimationFrame(gameLoop);
 }
 
-
-window.addEventListener('keydown', (e) => {
+// === Управление событиями ===
+window.addEventListener('keydown', e => {
     const key = e.key.toLowerCase();
     if (key === 'd' || key === 'в') keys.right = true;
     if (key === 'a' || key === 'ф') keys.left = true;
     if (key === ' ') keys.jump = true;
 });
-
-window.addEventListener('keyup', (e) => {
+window.addEventListener('keyup', e => {
     const key = e.key.toLowerCase();
     if (key === 'd' || key === 'в') keys.right = false;
     if (key === 'a' || key === 'ф') keys.left = false;
     if (key === ' ') keys.jump = false;
 });
-
-window.addEventListener('mousedown', (e) => {
-    if (e.button === 0) { 
-        keys.attack = true;
-    }
+window.addEventListener('mousedown', e => {
+    if (e.button === 0) keys.attack = true;
+});
+window.addEventListener('mouseup', e => {
+    if (e.button === 0) keys.attack = false;
 });
 
-window.addEventListener('mouseup', (e) => {
-    if (e.button === 0) {
-        keys.attack = false;
-    }
-});
-
-
-gameLoop(0);
+// === Старт ===
+window.onload = () => {
+    resizeCanvas();
+    gameLoop(0);
+};
