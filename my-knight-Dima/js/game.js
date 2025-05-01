@@ -35,7 +35,7 @@ const skeleton = {
     state: 'walk',
     direction: 'left',
     frameX: 0,
-    maxFrameWalk: 4,
+    maxFrameWalk: 3,
     maxFrameAttack: 7,
     frameTimer: 0,
     frameInterval: 100,
