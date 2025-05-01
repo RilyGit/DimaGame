@@ -47,7 +47,7 @@ const skeleton = {
     takeHit: false,
 };
 
-const skeletonVisualOffset = 42; 
+const skeletonVisualOffset = 42;
 
 // === Управление ===
 const keys = { right: false, left: false, attack: false, jump: false };
@@ -93,7 +93,6 @@ window.addEventListener('resize', resizeCanvas);
 function updatePlayer(deltaTime) {
     if (!player.isAlive) return;
 
-    // движение
     if (keys.right) {
         player.x += player.speed;
         player.direction = 'right';
@@ -106,7 +105,6 @@ function updatePlayer(deltaTime) {
         player.action = 'idle';
     }
 
-    // прыжок
     if (keys.jump && !player.isJumping) {
         player.velocityY = -18;
         player.isJumping = true;
@@ -115,7 +113,6 @@ function updatePlayer(deltaTime) {
     player.y += player.velocityY;
     player.velocityY += player.gravity;
 
-    // касание земли
     if (player.y + player.height >= groundLevel) {
         player.y = groundLevel - player.height;
         player.velocityY = 0;
@@ -123,7 +120,6 @@ function updatePlayer(deltaTime) {
         if (player.action === 'jump') player.action = 'idle';
     }
 
-    // атака
     if (keys.attack && Date.now() - lastAttackTime > attackCooldown) {
         attackToggle = !attackToggle;
         player.action = attackToggle ? 'attack2' : 'attack1';
@@ -131,14 +127,12 @@ function updatePlayer(deltaTime) {
         if (playerHitsSkeleton()) skeleton.takeHit = true;
     }
 
-    // анимация кадров
     player.frameTimer += deltaTime;
     if (player.frameTimer > player.frameInterval) {
         player.currentFrame = (player.currentFrame + 1) % 4;
         player.frameTimer = 0;
     }
 
-    // камера
     camera.x = player.x - canvas.width / 2 + player.width / 2;
 }
 
@@ -146,7 +140,6 @@ function updatePlayer(deltaTime) {
 function updateSkeleton(deltaTime) {
     if (!skeleton.isAlive) return;
 
-    // гравитация
     skeleton.y += skeleton.velocityY;
     skeleton.velocityY += skeleton.gravity;
     if (skeleton.y + skeleton.height - skeletonVisualOffset >= groundLevel) {
@@ -154,7 +147,6 @@ function updateSkeleton(deltaTime) {
         skeleton.velocityY = 0;
     }
 
-    // обработка попадания
     if (skeleton.takeHit) {
         skeleton.hp -= 20;
         skeleton.takeHit = false;
@@ -164,7 +156,6 @@ function updateSkeleton(deltaTime) {
         }
     }
 
-    // поведение: атака или ходьба
     const dist = Math.abs(
         (skeleton.x + skeleton.width / 2) - (player.x + player.width / 2)
     );
@@ -186,7 +177,6 @@ function updateSkeleton(deltaTime) {
         }
     }
 
-    // анимация скелета
     skeleton.frameTimer += deltaTime;
     if (skeleton.frameTimer > skeleton.frameInterval) {
         skeleton.frameTimer = 0;
@@ -200,20 +190,11 @@ function updateSkeleton(deltaTime) {
     }
 }
 
-// проверка попадания игрока по скелету
 function playerHitsSkeleton() {
     return skeleton.isAlive &&
         Math.abs(
             (skeleton.x + skeleton.width / 2) - (player.x + player.width / 2)
         ) < 100;
-}
-
-// === Отрисовка ===
-function drawHPBar(x, y, width, hp, maxHp, color) {
-    ctx.fillStyle = 'gray';
-    ctx.fillRect(x, y, width, 10);
-    ctx.fillStyle = color;
-    ctx.fillRect(x, y, width * (hp / maxHp), 10);
 }
 
 function drawPlayer() {
@@ -245,14 +226,6 @@ function drawPlayer() {
         );
     }
     ctx.restore();
-    drawHPBar(
-        player.x - camera.x,
-        player.y - 20,
-        player.width,
-        player.hp,
-        100,
-        'green'
-    );
 }
 
 function drawSkeleton() {
@@ -282,14 +255,6 @@ function drawSkeleton() {
         );
     }
     ctx.restore();
-    drawHPBar(
-        skeleton.x - camera.x,
-        skeleton.y + skeletonVisualOffset - 20,
-        skeleton.width,
-        skeleton.hp,
-        50,
-        'red'
-    );
 }
 
 function drawGround() {
