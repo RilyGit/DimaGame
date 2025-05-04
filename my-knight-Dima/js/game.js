@@ -68,6 +68,9 @@ const attackImage1 = loadImage('./assets/images/Attack.png');
 const attackImage2 = loadImage('./assets/images/Attack2.png');
 const jumpImage = loadImage('./assets/images/Jump.png');
 const dirtImage = loadImage('./assets/images/dirt.png');
+const jumpSound = new Audio('assets/images/jump.mp3');
+const hitSound = new Audio('assets/images/hit.mp3');
+const skeletonHitSound = new Audio('assets/images/skeleton_hit.mp3');
 
 const skeletonImages = {
     walk: loadImage('./assets/images/Skeleton_Walk.png'),
@@ -126,6 +129,8 @@ function updatePlayer(deltaTime) {
         attackToggle = !attackToggle;
         player.action = attackToggle ? 'attack2' : 'attack1';
         lastAttackTime = Date.now();
+        hitSound.currentTime = 0; // сброс на начало
+        hitSound.play();
         if (playerHitsSkeleton()) skeleton.takeHit = true;
     }
 
