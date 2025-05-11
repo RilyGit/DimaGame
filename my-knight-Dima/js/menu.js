@@ -1,5 +1,5 @@
 // Загружаем звук кнопки
-const blipSound = new Audio('assets/images/blip.mp3');
+const blipSound = new Audio('assets/sounds/blip.mp3');
 
 // Учитываем настройки звука из localStorage
 function playBlip() {
