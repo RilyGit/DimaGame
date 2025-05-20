@@ -202,15 +202,22 @@ class Entity {
         }
     }
 
-    takeDamage(amount, attackerDirection) {
+    takeDamage(amount, attackerDirection, game) {
         if (!this.isAlive || this.isDying || this.isTakingHit) return;
 
         this.hp -= amount;
         this.isTakingHit = true;
         this.hitTimer = 0;
 
+        // Create hit particles at the center of the entity
+        const centerX = this.x + this.width / 2;
+        const centerY = this.y + this.height / 2;
+        if (game && game.particleSystem) {
+            game.particleSystem.createHitParticles(centerX, centerY);
+        }
+
         if (this.hasHitAnimation && resources.getImage(this.spriteNames.hit)) {
-             this.action = 'hit';
+            this.action = 'hit';
         }
 
         this.currentFrame = 0;
@@ -386,7 +393,7 @@ class Player extends Entity {
                 const attackBox = this.getAttackRangeBox();
                 game.enemies.forEach(enemy => {
                     if (enemy.isAlive && game.checkCollision(attackBox, enemy.getHitbox())) {
-                        enemy.takeDamage(PLAYER_ATTACK_DAMAGE, this.direction);
+                        enemy.takeDamage(PLAYER_ATTACK_DAMAGE, this.direction, game);
                         resources.playSound('skeletonImpactSound');
                     }
                 });
@@ -457,9 +464,9 @@ else if (this.action === 'attack2') maxFrames = 6;
         this.drawHealthBar(camera);
     }
 
-    takeDamage(amount, attackerDirection) {
+    takeDamage(amount, attackerDirection, game) {
         if (!this.isAlive || this.isDying) return;
-        super.takeDamage(amount, attackerDirection);
+        super.takeDamage(amount, attackerDirection, game);
         if (this.isAlive) {
             resources.playSound('playerDamagedSound');
         }
@@ -555,7 +562,7 @@ class Skeleton extends Entity {
         if (this.action === 'attack' && resources.getImage(this.spriteNames.attack) && this.currentFrame === Math.floor(this.maxFramesPerAction.attack / 2)) {
             const attackBox = this.getAttackRangeBox();
             if (game.checkCollision(attackBox, player.getHitbox()) && player.isAlive) {
-                player.takeDamage(SKELETON_ATTACK_DAMAGE, this.direction);
+                player.takeDamage(SKELETON_ATTACK_DAMAGE, this.direction, game);
             }
         }
 
@@ -605,8 +612,8 @@ class Skeleton extends Entity {
         }
         this.drawHealthBar(camera);
     }
-    takeDamage(amount, attackerDirection) {
-        super.takeDamage(amount, attackerDirection);
+    takeDamage(amount, attackerDirection, game) {
+        super.takeDamage(amount, attackerDirection, game);
     }
     die() {
         super.die();
@@ -633,6 +640,59 @@ const levels = [
     { enemies: [{ type: 'skeleton', x: 600 }, { type: 'skeleton', x: 850 }, { type: 'skeleton', x: 1100 }], playerStart: { x: 100 } }
 ];
 
+class ParticleSystem {
+    constructor() {
+        this.particles = [];
+    }
+
+    createHitParticles(x, y, count = 8) {
+        for (let i = 0; i < count; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 2 + Math.random() * 3;
+            const size = 2 + Math.random() * 3;
+            const lifetime = 500; // 0.5 seconds
+
+            this.particles.push({
+                x,
+                y,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                size,
+                lifetime,
+                maxLifetime: lifetime,
+                color: `hsl(0, 100%, ${50 + Math.random() * 20}%)`
+            });
+        }
+    }
+
+    update(deltaTime) {
+        for (let i = this.particles.length - 1; i >= 0; i--) {
+            const p = this.particles[i];
+            p.x += p.vx;
+            p.y += p.vy;
+            p.vy += 0.1; // gravity
+            p.lifetime -= deltaTime;
+
+            if (p.lifetime <= 0) {
+                this.particles.splice(i, 1);
+            }
+        }
+    }
+
+    draw(ctx, camera) {
+        ctx.save();
+        this.particles.forEach(p => {
+            const alpha = p.lifetime / p.maxLifetime;
+            ctx.fillStyle = p.color;
+            ctx.globalAlpha = alpha;
+            ctx.beginPath();
+            ctx.arc(p.x - camera.x, p.y, p.size, 0, Math.PI * 2);
+            ctx.fill();
+        });
+        ctx.restore();
+    }
+}
+
 class Game {
     constructor(canvas) {
         this.canvas = canvas;
@@ -651,6 +711,8 @@ class Game {
         this.resizeCanvas();
         window.addEventListener('resize', () => this.resizeCanvas());
         this.setupInputHandlers();
+
+        this.particleSystem = new ParticleSystem();
     }
 
     resizeCanvas() {
@@ -727,6 +789,8 @@ class Game {
             }
         });
 
+        this.particleSystem.update(deltaTime);
+
         this.enemies = this.enemies.filter(enemy => enemy.isAlive || !enemy.deathAnimationFinished);
 
         this.camera.follow(this.player);
@@ -736,7 +800,7 @@ class Game {
         } else if (this.enemies.every(enemy => !enemy.isAlive && enemy.deathAnimationFinished)) {
             this.gameState = 'levelComplete';
             setTimeout(() => {
-                if (this.gameState === 'levelComplete') { // Доп. проверка, если состояние изменилось
+                if (this.gameState === 'levelComplete') {
                     this.loadLevel(this.currentLevelIndex + 1);
                 }
             }, 2000);
@@ -818,6 +882,7 @@ class Game {
         this.enemies.forEach(enemy => {
             enemy.draw(this.camera);
         });
+        this.particleSystem.draw(this.ctx, this.camera);
     }
 
     checkCollision(rect1, rect2) {
