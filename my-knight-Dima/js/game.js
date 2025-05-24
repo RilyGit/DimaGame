@@ -62,6 +62,10 @@ class ResourceManager {
 
     async loadAll() {
         console.log("Starting resource loading...");
+        this.loadImage('background0', './assets/images/background_0.png');
+        this.loadImage('background1', './assets/images/background_1.png');
+        this.loadImage('background2', './assets/images/background_2.png');
+
         this.loadImage('playerIdle', './assets/images/Idle.png');
         this.loadImage('playerRun', './assets/images/Run.png');
         this.loadImage('playerAttack1', './assets/images/Attack.png');
@@ -693,6 +697,40 @@ class ParticleSystem {
     }
 }
 
+class ParallaxBackground {
+    constructor() {
+        this.layers = [
+            { image: 'background0', speed: 0.1, y: 0 },  // Самый дальний слой
+            { image: 'background1', speed: 0.2, y: 0 },  // Средний слой
+            { image: 'background2', speed: 0.3, y: 0 }   // Ближний слой
+        ];
+    }
+
+    draw(ctx, camera) {
+        this.layers.forEach(layer => {
+            const img = resources.getImage(layer.image);
+            if (img) {
+                // Масштабируем изображение по высоте экрана
+                const scale = ctx.canvas.height / img.height;
+                const scaledWidth = img.width * scale;
+                const scaledHeight = img.height * scale;
+                
+                // Вычисляем смещение на основе позиции камеры и скорости слоя
+                const offset = -(camera.x * layer.speed) % scaledWidth;
+                
+                // Вычисляем, сколько изображений нужно нарисовать
+                const numImages = Math.ceil(ctx.canvas.width / scaledWidth) + 1;
+                
+                // Рисуем изображения
+                for (let i = -1; i < numImages; i++) {
+                    const x = offset + (i * scaledWidth);
+                    ctx.drawImage(img, x, layer.y, scaledWidth, scaledHeight);
+                }
+            }
+        });
+    }
+}
+
 class Game {
     constructor(canvas) {
         this.canvas = canvas;
@@ -703,10 +741,12 @@ class Game {
         this.enemies = [];
         this.camera = new Camera(0, 0, this.canvas.width, this.canvas.height);
         this.keys = { right: false, left: false, attack: false, jump: false };
+        this.background = new ParallaxBackground();
 
         this.lastTime = 0;
         this.currentLevelIndex = 0;
         this.gameState = 'loading';
+        this.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
         this.resizeCanvas();
         window.addEventListener('resize', () => this.resizeCanvas());
@@ -715,23 +755,8 @@ class Game {
         this.particleSystem = new ParticleSystem();
     }
 
-    resizeCanvas() {
-        this.canvas.width = window.innerWidth;
-        this.canvas.height = window.innerHeight;
-        groundLevel = this.canvas.height - 60;
-        if (this.camera) {
-            this.camera.canvasWidth = this.canvas.width;
-            this.camera.canvasHeight = this.canvas.height;
-        }
-        if (this.player) {
-            this.player.y = groundLevel - this.player.height + this.player.visualOffsetY;
-        }
-        this.enemies.forEach(enemy => {
-            enemy.y = groundLevel - enemy.height + enemy.visualOffsetY;
-        });
-    }
-
     setupInputHandlers() {
+        // Keyboard controls
         window.addEventListener('keydown', e => {
             const k = e.key.toLowerCase();
             if (k === 'd' || k === 'в') this.keys.right = true;
@@ -747,11 +772,136 @@ class Game {
             if (k === 'a' || k === 'ф') this.keys.left = false;
             if (k === ' ') this.keys.jump = false;
         });
+
+        // Mouse controls
         this.canvas.addEventListener('mousedown', e => {
             if (e.button === 0 && this.gameState === 'playing') this.keys.attack = true;
         });
         this.canvas.addEventListener('mouseup', e => {
             if (e.button === 0) this.keys.attack = false;
+        });
+
+        // Touch controls for mobile
+        if (this.isMobile) {
+            this.setupTouchControls();
+        }
+    }
+
+    setupTouchControls() {
+        // Create mobile controls container
+        const controlsContainer = document.createElement('div');
+        controlsContainer.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: space-between;
+            padding: 0 20px;
+            z-index: 1000;
+            pointer-events: none;
+        `;
+
+        // Create movement buttons
+        const leftBtn = this.createTouchButton('←');
+        const rightBtn = this.createTouchButton('→');
+        const jumpBtn = this.createTouchButton('↑');
+        const attackBtn = this.createTouchButton('⚔');
+
+        // Style attack button
+        attackBtn.style.right = '20px';
+        attackBtn.style.left = 'auto';
+
+        // Add buttons to container
+        controlsContainer.appendChild(leftBtn);
+        controlsContainer.appendChild(rightBtn);
+        controlsContainer.appendChild(jumpBtn);
+        controlsContainer.appendChild(attackBtn);
+
+        // Add container to body
+        document.body.appendChild(controlsContainer);
+
+        // Touch event handlers
+        leftBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            this.keys.left = true;
+        });
+        leftBtn.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            this.keys.left = false;
+        });
+
+        rightBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            this.keys.right = true;
+        });
+        rightBtn.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            this.keys.right = false;
+        });
+
+        jumpBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            this.keys.jump = true;
+        });
+        jumpBtn.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            this.keys.jump = false;
+        });
+
+        attackBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            this.keys.attack = true;
+        });
+        attackBtn.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            this.keys.attack = false;
+        });
+    }
+
+    createTouchButton(text) {
+        const button = document.createElement('button');
+        button.textContent = text;
+        button.style.cssText = `
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            color: white;
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            pointer-events: auto;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        `;
+        return button;
+    }
+
+    resizeCanvas() {
+        // Set canvas size to window size
+        this.canvas.width = window.innerWidth;
+        this.canvas.height = window.innerHeight;
+
+        // Adjust ground level based on screen size
+        groundLevel = this.canvas.height - (this.isMobile ? 40 : 60);
+
+        // Update camera dimensions
+        if (this.camera) {
+            this.camera.canvasWidth = this.canvas.width;
+            this.camera.canvasHeight = this.canvas.height;
+        }
+
+        // Update player and enemies positions
+        if (this.player) {
+            this.player.y = groundLevel - this.player.height + this.player.visualOffsetY;
+        }
+        this.enemies.forEach(enemy => {
+            enemy.y = groundLevel - enemy.height + enemy.visualOffsetY;
         });
     }
 
@@ -871,8 +1021,8 @@ class Game {
     }
 
     draw() {
-        this.ctx.fillStyle = '#87ceeb';
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        // Рисуем параллакс-фон
+        this.background.draw(this.ctx, this.camera);
 
         this.drawGround();
 
