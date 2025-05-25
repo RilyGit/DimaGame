@@ -543,8 +543,12 @@ class Skeleton extends Entity {
         const distToPlayer = Math.abs((this.x + this.width / 2) - (player.x + player.width / 2));
         const dyPlayer = Math.abs((this.y + this.height / 2) - (player.y + player.height / 2));
 
-        if (player.x < this.x) this.direction = 'left';
-        else this.direction = 'right';
+        // Corrected logic for skeleton direction
+        if (player.x < this.x) {
+            this.direction = 'left';
+        } else {
+            this.direction = 'right';
+        }
 
         const prevAction = this.action;
 
@@ -790,36 +794,20 @@ class Game {
     setupTouchControls() {
         // Create mobile controls container
         const controlsContainer = document.createElement('div');
-        controlsContainer.style.cssText = `
-            position: fixed;
-            bottom: 20px;
-            left: 0;
-            right: 0;
-            display: flex;
-            justify-content: space-between;
-            padding: 0 20px;
-            z-index: 1000;
-            pointer-events: none;
-        `;
+        controlsContainer.className = 'mobile-controls-container'; // Assign class
+        document.body.appendChild(controlsContainer);
 
         // Create movement buttons
-        const leftBtn = this.createTouchButton('←');
-        const rightBtn = this.createTouchButton('→');
-        const jumpBtn = this.createTouchButton('↑');
-        const attackBtn = this.createTouchButton('⚔');
-
-        // Style attack button
-        attackBtn.style.right = '20px';
-        attackBtn.style.left = 'auto';
+        const leftBtn = this.createTouchButton('←', 'mobile-btn-left'); // Assign class
+        const rightBtn = this.createTouchButton('→', 'mobile-btn-right'); // Assign class
+        const jumpBtn = this.createTouchButton('↑', 'mobile-btn-jump'); // Assign class
+        const attackBtn = this.createTouchButton('⚔', 'mobile-btn-attack'); // Assign class
 
         // Add buttons to container
         controlsContainer.appendChild(leftBtn);
         controlsContainer.appendChild(rightBtn);
         controlsContainer.appendChild(jumpBtn);
         controlsContainer.appendChild(attackBtn);
-
-        // Add container to body
-        document.body.appendChild(controlsContainer);
 
         // Touch event handlers
         leftBtn.addEventListener('touchstart', (e) => {
@@ -859,26 +847,10 @@ class Game {
         });
     }
 
-    createTouchButton(text) {
+    createTouchButton(text, className) { // Accept className as argument
         const button = document.createElement('button');
         button.textContent = text;
-        button.style.cssText = `
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.3);
-            border: 2px solid rgba(255, 255, 255, 0.5);
-            color: white;
-            font-size: 24px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            pointer-events: auto;
-            user-select: none;
-            -webkit-user-select: none;
-            touch-action: manipulation;
-        `;
+        button.className = 'mobile-control-btn ' + className; // Assign base class and specific class
         return button;
     }
 
@@ -1039,7 +1011,7 @@ class Game {
         return rect1.x < rect2.x + rect2.width &&
                rect1.x + rect1.width > rect2.x &&
                rect1.y < rect2.y + rect2.height &&
-               rect1.y + rect1.height > rect2.y;
+               rect1.y + rect2.height > rect2.y;
     }
 
     gameLoop(timestamp) {

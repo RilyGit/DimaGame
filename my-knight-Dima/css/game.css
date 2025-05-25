@@ -14,6 +14,93 @@ html, body {
 #gameCanvas {
   display: block;
   width: 100%;
+  height: 100%; /* Ensure canvas fills height */
   image-rendering: pixelated;
+}
+
+/* Mobile Controls Styling */
+.mobile-controls-container {
+    position: fixed;
+    bottom: 20px;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: space-between;
+    padding: 0 20px;
+    z-index: 1000;
+    /* pointer-events: none; - Removed from here, handled per button */
+}
+
+.mobile-control-btn {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    border: 2px solid rgba(255, 255, 255, 0.5);
+    color: white;
+    font-size: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    pointer-events: auto; /* Enable pointer events for buttons */
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
+}
+
+/* Specific positioning for movement and attack buttons */
+.mobile-btn-left,
+.mobile-btn-right {
+    position: absolute; /* Position relative to container */
+    bottom: 0;
+}
+
+.mobile-btn-left {
+    left: 20px;
+}
+
+.mobile-btn-right {
+    left: 100px; /* Adjust as needed for spacing */
+}
+
+.mobile-btn-jump {
+    position: absolute;
+    bottom: 0;
+    right: 100px; /* Position to the right, next to attack */
+}
+
+.mobile-btn-attack {
+    position: absolute;
+    bottom: 0;
+    right: 20px;
+}
+
+/* Hide controls on larger screens (desktops/tablets) */
+@media screen and (min-width: 768px) {
+    .mobile-controls-container {
+        display: none; /* Hide the entire container on larger screens */
+    }
+}
+
+/* Optional: Adjust button sizes for smaller mobile screens if needed */
+@media screen and (max-width: 480px) {
+    .mobile-control-btn {
+        width: 50px;
+        height: 50px;
+        font-size: 20px;
+    }
+    .mobile-btn-left {
+        left: 10px;
+    }
+    .mobile-btn-right {
+        left: 70px;
+    }
+    .mobile-btn-jump {
+        right: 70px;
+    }
+    .mobile-btn-attack {
+        right: 10px;
+    }
 }
 
