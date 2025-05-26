@@ -488,7 +488,8 @@ class Skeleton extends Entity {
         this.attackRange = 80;
         this.attackCooldown = 1500;
         this.lastAttackTime = 0;
-
+        this.frameInterval = 100;
+        this.attackFrameInterval = 50;
         this.spriteNames = {
             walk: 'skeletonWalk',
             attack: 'skeletonAttack',
@@ -497,9 +498,9 @@ class Skeleton extends Entity {
         };
         this.hasHitAnimation = true;
         this.hasDeathAnimation = true;
-
-        this.maxFramesPerAction = { walk: 3, attack: 7, hit: 3, death: 3 };
+        this.maxFramesPerAction = { walk: 3, attack: 8, hit: 3, death: 3 };
         this.action = 'walk';
+        this.hasHit = false;
     }
 
     update(deltaTime, player, game) {
@@ -510,78 +511,70 @@ class Skeleton extends Entity {
             this.applyKnockback();
             let currentMaxFramesKey = this.action;
             if (!this.spriteNames[currentMaxFramesKey] || !resources.getImage(this.spriteNames[currentMaxFramesKey])) {
-                 if (this.isDying) this.deathAnimationFinished = true;
-                 if (this.isTakingHit) { /* isTakingHit сбросится по таймеру в updateHitState */ }
+                if (this.isDying) this.deathAnimationFinished = true;
             } else {
-                this.updateAnimation(deltaTime, (this.maxFramesPerAction[currentMaxFramesKey] || 0) + 1);
-            }
-
-            if(this.action === 'hit' && this.isTakingHit) {
-                const hitAnimFinished = this.currentFrame >= this.maxFramesPerAction.hit;
-                if(hitAnimFinished || !resources.getImage(this.spriteNames.hit)) { 
-                    if (this.isAlive) this.action = 'walk';
-                    this.currentFrame = 0;
-                }
+                this.updateAnimation(deltaTime, (this.maxFramesPerAction[currentMaxFramesKey] || 0));
             }
             this.updateHitState(deltaTime);
-
             return;
         }
 
         this.applyGravity();
         this.applyKnockback();
-        this.updateHitState(deltaTime); 
+        this.updateHitState(deltaTime);
+
+        if (this.action === 'attack') {
+            const originalInterval = this.frameInterval;
+            this.frameInterval = this.attackFrameInterval;
+            this.updateAnimation(deltaTime, this.maxFramesPerAction.attack);
+            this.frameInterval = originalInterval;
+            if (this.currentFrame === Math.floor(this.maxFramesPerAction.attack / 2) && !this.hasHit) {
+                const attackBox = this.getAttackRangeBox();
+                if (game.checkCollision(attackBox, player.getHitbox()) && player.isAlive) {
+                    player.takeDamage(SKELETON_ATTACK_DAMAGE, this.direction, game);
+                }
+                this.hasHit = true;
+            }
+            if (this.currentFrame >= this.maxFramesPerAction.attack) {
+                this.action = 'walk';
+                this.currentFrame = 0;
+                this.frameTimer = 0;
+                this.hasHit = false;
+                this.lastAttackTime = Date.now();
+            }
+            return;
+        }
 
         if (!player.isAlive) {
             this.action = 'walk';
-            if (resources.getImage(this.spriteNames.walk)) {
-                this.updateAnimation(deltaTime, this.maxFramesPerAction.walk + 1);
-            }
+            this.updateAnimation(deltaTime, this.maxFramesPerAction.walk);
             return;
         }
 
         const distToPlayer = Math.abs((this.x + this.width / 2) - (player.x + player.width / 2));
         const dyPlayer = Math.abs((this.y + this.height / 2) - (player.y + player.height / 2));
 
-        // Corrected logic for skeleton direction
         if (player.x < this.x) {
             this.direction = 'left';
         } else {
             this.direction = 'right';
         }
 
-        const prevAction = this.action;
-
-        if (!this.isTakingHit) { 
-            if (distToPlayer <= this.attackRange && dyPlayer < this.height / 1.5) {
-                if (Date.now() - this.lastAttackTime > this.attackCooldown) {
-                    this.action = 'attack';
-                    this.lastAttackTime = Date.now();
-                } else if (this.action !== 'attack') {
-                    this.action = 'walk';
-                }
-            } else {
-                this.action = 'walk';
-                if (this.direction === 'left') this.x -= this.speed;
-                else this.x += this.speed;
+        if (distToPlayer <= this.attackRange && dyPlayer < this.height / 1.5) {
+            if (Date.now() - this.lastAttackTime > this.attackCooldown && this.action !== 'attack') {
+                this.action = 'attack';
+                this.currentFrame = 0;
+                this.frameTimer = 0;
+                this.hasHit = false;
+                return;
             }
         }
 
-        if (this.action === 'attack' && resources.getImage(this.spriteNames.attack) && this.currentFrame === Math.floor(this.maxFramesPerAction.attack / 2)) {
-            const attackBox = this.getAttackRangeBox();
-            if (game.checkCollision(attackBox, player.getHitbox()) && player.isAlive) {
-                player.takeDamage(SKELETON_ATTACK_DAMAGE, this.direction, game);
-            }
-        }
-
-        if (this.action !== prevAction) {
-            this.currentFrame = 0;
-            this.frameTimer = 0;
-        }
-        if (resources.getImage(this.spriteNames[this.action])) {
-             this.updateAnimation(deltaTime, (this.maxFramesPerAction[this.action] || 0) + 1);
-        } else if (this.action === 'walk' && resources.getImage(this.spriteNames.walk)) { 
-            this.updateAnimation(deltaTime, (this.maxFramesPerAction.walk || 0) + 1);
+        if (this.action !== 'attack') {
+            this.action = 'walk';
+            if (this.direction === 'left') this.x -= this.speed;
+            else this.x += this.speed;
+            this.updateAnimation(deltaTime, this.maxFramesPerAction.walk);
         }
     }
 
